@@ -200,25 +200,33 @@
 
   /* ── Entry cells (rowspan) ── */
   .schedule-table td.entry-cell {
-    padding: 6px 2px;
+    padding: 3px;
     vertical-align: middle;
     text-align: center;
     cursor: pointer;
-    transition: filter 0.12s, box-shadow 0.12s;
+    height: 100%;
   }
-  .schedule-table td.entry-cell:hover {
-    filter: brightness(0.95);
-    box-shadow: inset 0 0 0 2px rgba(0,0,0,0.08);
+  .entry-block {
+    width: 100%; height: 100%;
+    border-radius: 6px;
+    padding: 6px 2px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    transition: filter 0.12s;
+    position: relative;
   }
-  .schedule-table td.ec-material {
+  .entry-block:hover {
+    filter: brightness(0.94);
+  }
+  .entry-block.eb-material {
     background: var(--blue-bg);
     border-left: 3px solid var(--blue);
   }
-  .schedule-table td.ec-work {
+  .entry-block.eb-work {
     background: var(--red-bg);
     border-left: 3px solid var(--red);
   }
-  .schedule-table td.ec-waste {
+  .entry-block.eb-waste {
     background: var(--yellow-bg);
     border-left: 3px solid var(--yellow);
   }
@@ -255,11 +263,11 @@
   }
   .entry-del:hover { background: rgba(0,0,0,0.12); }
   td.entry-cell { position: relative; }
-  td.entry-cell:hover .entry-del { display: flex; }
+  .entry-block:hover .entry-del { display: flex; }
 
-  .ec-material, .ec-material .entry-vert, .ec-material .entry-type-h { color: var(--blue); }
-  .ec-work, .ec-work .entry-vert, .ec-work .entry-type-h { color: var(--red); }
-  .ec-waste, .ec-waste .entry-vert, .ec-waste .entry-type-h { color: var(--yellow); }
+  .eb-material, .eb-material .entry-vert, .eb-material .entry-type-h, .eb-material .entry-single-text { color: var(--blue); }
+  .eb-work, .eb-work .entry-vert, .eb-work .entry-type-h, .eb-work .entry-single-text { color: var(--red); }
+  .eb-waste, .eb-waste .entry-vert, .eb-waste .entry-type-h, .eb-waste .entry-single-text { color: var(--yellow); }
   /* single-row (1-hour entry) */
   .entry-single-text {
     font-size: 12px; font-weight: 600;
@@ -706,7 +714,7 @@ function buildTable() {
         const typeLabels = {material:'자재수급', work:'작업', waste:'폐기물'};
         const span = entry.endH - entry.startH;
         if(span > 1) td.rowSpan = span;
-        td.classList.add(`entry-cell`, `ec-${entry.type}`);
+        td.classList.add('entry-cell');
 
         // 엔트리 클릭 → 수정 모달
         td.addEventListener('click', (ev) => {
@@ -714,11 +722,14 @@ function buildTable() {
           openEditModal(entry);
         });
 
+        const block = document.createElement('div');
+        block.className = `entry-block eb-${entry.type}`;
         if(span === 1) {
-          td.innerHTML = `<span class="entry-single-text">${entry.site}</span>`;
+          block.innerHTML = `<span class="entry-single-text">${entry.site}</span>`;
         } else {
-          td.innerHTML = `<span class="entry-vert">${entry.site.split('').join('<br>')}</span><span class="entry-type-h">${typeLabels[entry.type]}</span>`;
+          block.innerHTML = `<span class="entry-vert">${entry.site.split('').join('<br>')}</span><span class="entry-type-h">${typeLabels[entry.type]}</span>`;
         }
+        td.appendChild(block);
       }
 
       tr.appendChild(td);
