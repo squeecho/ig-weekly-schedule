@@ -181,11 +181,12 @@
     border-right: 1.5px solid var(--border);
   }
   .schedule-table td.cell {
-    padding: 2px; height: 44px; min-height: 44px; max-height: 44px;
+    padding: 2px; height: 44px;
     cursor: pointer;
-    transition: background 0.12s; position: relative;
+    transition: background 0.12s;
   }
   .schedule-table td.cell:hover { background: #f8f7f3; }
+  .schedule-table td.entry-cell:hover { filter: brightness(0.97); }
   .schedule-table td.cell.selecting {
     background: var(--select-bg) !important;
     box-shadow: inset 0 0 0 2px var(--accent);
@@ -197,13 +198,32 @@
   .col-sun { color: var(--red) !important; }
   .col-sat { color: var(--blue) !important; }
 
-  /* ── Entry ── */
+  /* ── Entry cells (rowspan) ── */
+  .schedule-table td.entry-cell {
+    padding: 4px 2px;
+    vertical-align: middle;
+  }
+  .schedule-table td.ec-material {
+    background: var(--blue-bg);
+    border-left: 3px solid var(--blue);
+  }
+  .schedule-table td.ec-work {
+    background: var(--red-bg);
+    border-left: 3px solid var(--red);
+  }
+  .schedule-table td.ec-waste {
+    background: var(--yellow-bg);
+    border-left: 3px solid var(--yellow);
+  }
+
+  /* ── Entry (text inside cell) ── */
   .entry {
     display: flex; flex-direction: column; align-items: center;
     justify-content: center;
-    padding: 4px 2px; border-radius: 4px;
+    padding: 2px;
     font-size: 11px; font-weight: 600; line-height: 1;
     text-align: center; position: relative; cursor: default;
+    height: 100%;
   }
   .entry .entry-vert {
     writing-mode: vertical-rl;
@@ -240,6 +260,7 @@
     justify-content: center;
     gap: 4px;
     padding: 2px 4px;
+    height: 100%;
   }
   .entry .entry-single-text {
     font-size: 11px; font-weight: 600;
@@ -249,12 +270,9 @@
     text-align: center;
   }
 
-  .entry.type-material { background: var(--blue-bg); color: var(--blue); }
-  .entry.type-material .entry-bar { background: var(--blue); }
-  .entry.type-work { background: var(--red-bg); color: var(--red); }
-  .entry.type-work .entry-bar { background: var(--red); }
-  .entry.type-waste { background: var(--yellow-bg); color: var(--yellow); }
-  .entry.type-waste .entry-bar { background: var(--yellow); }
+  .entry.type-material { color: var(--blue); }
+  .entry.type-work { color: var(--red); }
+  .entry.type-waste { color: var(--yellow); }
 
   /* ── Memo ── */
   .memo-area {
@@ -663,58 +681,46 @@ function buildTable() {
     tr.appendChild(tdTime);
 
     for(let col=0; col<7; col++){
+      // 이 셀이 위쪽 rowspan에 의해 이미 점유됐는지 확인
+      const occupiedBy = wd.entries.find(e =>
+        e.dayCol === col && e.startH < h && h < e.endH
+      );
+      if(occupiedBy) continue; // rowspan이 덮고 있으므로 td 생략
+
+      const entry = wd.entries.find(e => e.dayCol === col && e.startH === h);
       const td = document.createElement('td');
       td.className = 'cell';
       td.dataset.col = col;
       td.dataset.hour = h;
       td.addEventListener('click', () => handleCellClick(col, h));
 
-      // Highlight if in selection range
+      // selection highlight
       if(selectState && selectState.col === col) {
         if(h === selectState.startH) td.classList.add('selecting');
       }
 
-      // Render entries
-      const covering = wd.entries.filter(e => e.dayCol === col && h >= e.startH && h < e.endH);
-      covering.forEach(e => {
-        if(h === e.startH) {
+      if(entry) {
+        const typeLabels = {material:'자재수급', work:'작업', waste:'폐기물'};
+        const span = entry.endH - entry.startH;
+        if(span > 1) td.rowSpan = span;
+        td.classList.add(`entry-cell`, `ec-${entry.type}`);
+
+        if(span === 1) {
           const div = document.createElement('div');
-          div.className = `entry type-${e.type}`;
-          const typeLabels = {material:'자재수급', work:'작업', waste:'폐기물'};
-          const span = e.endH - e.startH;
-          if(span > 1) {
-            div.style.position = 'absolute';
-            div.style.left = '2px'; div.style.right = '2px';
-            div.style.top = '2px'; div.style.zIndex = '2';
-            // height will be set by resizeEntries()
-            div.dataset.span = span;
-            div.innerHTML = `<span class="entry-vert">${e.site}</span><span class="entry-type-h">${typeLabels[e.type]}</span><button class="entry-del" onclick="event.stopPropagation(); removeEntry('${e.id}')">✕</button>`;
-          } else {
-            div.classList.add('entry-single');
-            div.style.height = 'calc(100% - 2px)';
-            div.innerHTML = `<span class="entry-single-text">${e.site}</span><button class="entry-del" onclick="event.stopPropagation(); removeEntry('${e.id}')">✕</button>`;
-          }
+          div.className = `entry entry-single type-${entry.type}`;
+          div.innerHTML = `<span class="entry-single-text">${entry.site}</span><button class="entry-del" onclick="event.stopPropagation(); removeEntry('${entry.id}')">✕</button>`;
           td.appendChild(div);
-          td.style.position = 'relative';
+        } else {
+          const div = document.createElement('div');
+          div.className = `entry type-${entry.type}`;
+          div.innerHTML = `<span class="entry-vert">${entry.site}</span><span class="entry-type-h">${typeLabels[entry.type]}</span><button class="entry-del" onclick="event.stopPropagation(); removeEntry('${entry.id}')">✕</button>`;
+          td.appendChild(div);
         }
-      });
+      }
 
       tr.appendChild(td);
     }
     tbody.appendChild(tr);
-  });
-  // 렌더 후 entry 높이 재계산
-  requestAnimationFrame(resizeEntries);
-}
-
-function resizeEntries() {
-  // 실제 셀 높이 측정
-  const firstCell = document.querySelector('td.cell');
-  if(!firstCell) return;
-  const cellH = firstCell.getBoundingClientRect().height;
-  document.querySelectorAll('.entry[data-span]').forEach(div => {
-    const span = parseInt(div.dataset.span);
-    div.style.height = `${span * cellH - 4}px`;
   });
 }
 
@@ -895,7 +901,6 @@ function exportImage() {
 
   // 리플로우 대기 후 캡처
   requestAnimationFrame(() => {
-    resizeEntries(); // 좁힌 폭에 맞게 entry 높이 재계산
     requestAnimationFrame(() => {
       html2canvas(el, {
         scale: 2, backgroundColor: '#f5f4f0', useCORS: true
@@ -905,7 +910,6 @@ function exportImage() {
         wrap.style.padding = origPad;
         nav.style.display = '';
         toast.style.display = '';
-        resizeEntries();
 
         const link = document.createElement('a');
         const now = new Date();
@@ -920,7 +924,6 @@ function exportImage() {
         wrap.style.padding = origPad;
         nav.style.display = '';
         toast.style.display = '';
-        resizeEntries();
       });
     });
   });
