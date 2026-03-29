@@ -888,12 +888,31 @@ function exportImage() {
   toast.style.display = 'none';
 
   // 리플로우 대기 후 캡처
+  // input/textarea → span 임시 교체 (html2canvas input 렌더 버그 회피)
+  const goalInput = document.getElementById('weeklyGoal');
+  const memoArea = document.getElementById('memoText');
+  const goalSpan = document.createElement('span');
+  goalSpan.textContent = goalInput.value || goalInput.placeholder;
+  goalSpan.style.cssText = `font-size:14px;font-weight:400;color:${goalInput.value ? 'var(--text)' : 'var(--text-light)'};font-family:inherit;line-height:1.4;`;
+  goalInput.style.display = 'none';
+  goalInput.parentNode.appendChild(goalSpan);
+
+  const memoSpan = document.createElement('span');
+  memoSpan.textContent = memoArea.value || memoArea.placeholder;
+  memoSpan.style.cssText = `font-size:13px;font-weight:400;color:${memoArea.value ? 'var(--text)' : 'var(--text-light)'};font-family:inherit;display:block;padding:6px 14px 10px;`;
+  memoArea.style.display = 'none';
+  memoArea.parentNode.appendChild(memoSpan);
+
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       html2canvas(el, {
         scale: 3, backgroundColor: '#f5f4f0', useCORS: true
       }).then(canvas => {
         // 복원
+        goalInput.style.display = '';
+        goalSpan.remove();
+        memoArea.style.display = '';
+        memoSpan.remove();
         wrap.style.maxWidth = origMaxW;
         wrap.style.padding = origPad;
         nav.style.display = '';
@@ -908,6 +927,10 @@ function exportImage() {
         link.href = canvas.toDataURL('image/png');
         link.click();
       }).catch(() => {
+        goalInput.style.display = '';
+        goalSpan.remove();
+        memoArea.style.display = '';
+        memoSpan.remove();
         wrap.style.maxWidth = origMaxW;
         wrap.style.padding = origPad;
         nav.style.display = '';
