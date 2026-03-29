@@ -187,7 +187,6 @@
     transition: background 0.12s;
   }
   .schedule-table td.cell:hover { background: #f8f7f3; }
-  .schedule-table td.entry-cell:hover { filter: brightness(0.97); }
   .schedule-table td.cell.selecting {
     background: var(--select-bg) !important;
     box-shadow: inset 0 0 0 2px var(--accent);
@@ -204,6 +203,12 @@
     padding: 6px 2px;
     vertical-align: middle;
     text-align: center;
+    cursor: pointer;
+    transition: filter 0.12s, box-shadow 0.12s;
+  }
+  .schedule-table td.entry-cell:hover {
+    filter: brightness(0.95);
+    box-shadow: inset 0 0 0 2px rgba(0,0,0,0.08);
   }
   .schedule-table td.ec-material {
     background: var(--blue-bg);
@@ -348,6 +353,7 @@
     font-family: inherit;
   }
   .modal .btn:hover { background:var(--surface); }
+  .modal .btn-del:hover { background:var(--red-bg) !important; }
   .modal .btn-primary { background: var(--text); color: #fff; border-color: var(--text); }
   .modal .btn-primary:hover { background: #333; }
 
@@ -501,7 +507,7 @@
 <!-- Modal -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
-    <h3>일정 추가</h3>
+    <h3 id="modalTitle">일정 추가</h3>
     <div class="time-display" id="timeDisplay"></div>
     <div class="field">
       <label>현장명</label>
@@ -516,8 +522,9 @@
       </div>
     </div>
     <div class="actions">
+      <button class="btn btn-del" id="btnDelete" onclick="deleteEditingEntry()" style="display:none; margin-right:auto; color:var(--red); border-color:var(--red);">삭제</button>
       <button class="btn" onclick="closeModal()">취소</button>
-      <button class="btn btn-primary" onclick="saveEntry()">추가</button>
+      <button class="btn btn-primary" id="btnSave" onclick="saveEntry()">추가</button>
     </div>
   </div>
 </div>
@@ -686,7 +693,9 @@ function buildTable() {
       td.className = 'cell';
       td.dataset.col = col;
       td.dataset.hour = h;
-      td.addEventListener('click', () => handleCellClick(col, h));
+      if(!entry) {
+        td.addEventListener('click', () => handleCellClick(col, h));
+      }
 
       // selection highlight
       if(selectState && selectState.col === col) {
@@ -699,10 +708,16 @@ function buildTable() {
         if(span > 1) td.rowSpan = span;
         td.classList.add(`entry-cell`, `ec-${entry.type}`);
 
+        // 엔트리 클릭 → 수정 모달
+        td.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          openEditModal(entry);
+        });
+
         if(span === 1) {
-          td.innerHTML = `<span class="entry-single-text">${entry.site}</span><button class="entry-del" onclick="event.stopPropagation(); removeEntry('${entry.id}')">✕</button>`;
+          td.innerHTML = `<span class="entry-single-text">${entry.site}</span>`;
         } else {
-          td.innerHTML = `<span class="entry-vert">${entry.site.split('').join('<br>')}</span><span class="entry-type-h">${typeLabels[entry.type]}</span><button class="entry-del" onclick="event.stopPropagation(); removeEntry('${entry.id}')">✕</button>`;
+          td.innerHTML = `<span class="entry-vert">${entry.site.split('').join('<br>')}</span><span class="entry-type-h">${typeLabels[entry.type]}</span>`;
         }
       }
 
@@ -789,14 +804,42 @@ document.addEventListener('keydown', e => {
 
 // ── Modal ──
 let modalCol, modalStartH, modalEndH;
+let editingId = null; // null=추가, string=수정
 
 function openModal(col, startH, endH) {
+  editingId = null;
   modalCol = col; modalStartH = startH; modalEndH = endH;
   selectedType = 'work';
   document.getElementById('inputSite').value = '';
+  document.getElementById('modalTitle').textContent = '일정 추가';
+  document.getElementById('btnSave').textContent = '추가';
+  document.getElementById('btnDelete').style.display = 'none';
   updateTypeButtons();
+  setTimeDisplay(col, startH, endH);
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('inputSite').focus(), 120);
+}
 
-  // Day name for display
+function openEditModal(entry) {
+  // 진행중인 선택 초기화
+  selectState = null;
+  clearHighlights();
+  document.getElementById('toast').classList.remove('visible');
+
+  editingId = entry.id;
+  modalCol = entry.dayCol; modalStartH = entry.startH; modalEndH = entry.endH;
+  selectedType = entry.type;
+  document.getElementById('inputSite').value = entry.site;
+  document.getElementById('modalTitle').textContent = '일정 수정';
+  document.getElementById('btnSave').textContent = '저장';
+  document.getElementById('btnDelete').style.display = '';
+  updateTypeButtons();
+  setTimeDisplay(entry.dayCol, entry.startH, entry.endH);
+  document.getElementById('modal').classList.add('open');
+  setTimeout(() => document.getElementById('inputSite').focus(), 120);
+}
+
+function setTimeDisplay(col, startH, endH) {
   const dayNames = ['일','월','화','수','목','금','토'];
   const offset = col === 0 ? 6 : col - 1;
   const dt = new Date(currentWeekStart);
@@ -805,13 +848,11 @@ function openModal(col, startH, endH) {
   const fromLabel = hourLabel(startH).split('-')[0];
   const toLabel = hourLabel(endH-1).split('-')[1];
   document.getElementById('timeDisplay').textContent = `${dayStr}  ${fromLabel}시 → ${toLabel}시`;
-
-  document.getElementById('modal').classList.add('open');
-  setTimeout(() => document.getElementById('inputSite').focus(), 120);
 }
 
 function closeModal() {
   document.getElementById('modal').classList.remove('open');
+  editingId = null;
 }
 
 function selectType(type) {
@@ -829,11 +870,29 @@ function saveEntry() {
   const site = document.getElementById('inputSite').value.trim();
   if(!site) return;
   const wd = getWeekData();
-  wd.entries.push({
-    site, type: selectedType,
-    dayCol: modalCol, startH: modalStartH, endH: modalEndH,
-    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6)
-  });
+
+  if(editingId) {
+    // 수정
+    const entry = wd.entries.find(e => e.id === editingId);
+    if(entry) {
+      entry.site = site;
+      entry.type = selectedType;
+    }
+  } else {
+    // 추가
+    wd.entries.push({
+      site, type: selectedType,
+      dayCol: modalCol, startH: modalStartH, endH: modalEndH,
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2,6)
+    });
+  }
+  saveToStorage(); closeModal(); buildTable();
+}
+
+function deleteEditingEntry() {
+  if(!editingId) return;
+  const wd = getWeekData();
+  wd.entries = wd.entries.filter(e => e.id !== editingId);
   saveToStorage(); closeModal(); buildTable();
 }
 
@@ -874,6 +933,16 @@ document.getElementById('nextWeek').onclick = () => {
 // ── Export ──
 function exportImage() {
   saveToStorage();
+
+  // 선택 상태 완전 초기화
+  selectState = null;
+  document.getElementById('toast').classList.remove('visible');
+  // selecting 클래스 직접 제거
+  document.querySelectorAll('.selecting, .in-range').forEach(el => {
+    el.classList.remove('selecting', 'in-range');
+  });
+  buildTable(); // 깨끗한 상태로 재빌드
+
   const el = document.getElementById('captureArea');
   const wrap = document.querySelector('.schedule-wrap');
   const nav = document.getElementById('weekNav');
@@ -887,7 +956,6 @@ function exportImage() {
   nav.style.display = 'none';
   toast.style.display = 'none';
 
-  // 리플로우 대기 후 캡처
   // input/textarea → span 임시 교체 (html2canvas input 렌더 버그 회피)
   const goalInput = document.getElementById('weeklyGoal');
   const memoArea = document.getElementById('memoText');
@@ -903,40 +971,36 @@ function exportImage() {
   memoArea.style.display = 'none';
   memoArea.parentNode.appendChild(memoSpan);
 
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      html2canvas(el, {
-        scale: 3, backgroundColor: '#f5f4f0', useCORS: true
-      }).then(canvas => {
-        // 복원
-        goalInput.style.display = '';
-        goalSpan.remove();
-        memoArea.style.display = '';
-        memoSpan.remove();
-        wrap.style.maxWidth = origMaxW;
-        wrap.style.padding = origPad;
-        nav.style.display = '';
-        toast.style.display = '';
+  function restore() {
+    goalInput.style.display = '';
+    goalSpan.remove();
+    memoArea.style.display = '';
+    memoSpan.remove();
+    wrap.style.maxWidth = origMaxW;
+    wrap.style.padding = origPad;
+    nav.style.display = '';
+    toast.style.display = '';
+  }
 
-        const link = document.createElement('a');
-        const now = new Date();
-        const yy = String(now.getFullYear()).slice(2);
-        const mm = String(now.getMonth()+1).padStart(2,'0');
-        const dd = String(now.getDate()).padStart(2,'0');
-        link.download = `${yy}${mm}${dd} iggg 주간일정.png`;
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-      }).catch(() => {
-        goalInput.style.display = '';
-        goalSpan.remove();
-        memoArea.style.display = '';
-        memoSpan.remove();
-        wrap.style.maxWidth = origMaxW;
-        wrap.style.padding = origPad;
-        nav.style.display = '';
-        toast.style.display = '';
-      });
-    });
+  // 3중 RAF로 DOM 완전 반영 대기
+  requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+  requestAnimationFrame(() => {
+    html2canvas(el, {
+      scale: 3, backgroundColor: '#f5f4f0', useCORS: true
+    }).then(canvas => {
+      restore();
+      const link = document.createElement('a');
+      const now = new Date();
+      const yy = String(now.getFullYear()).slice(2);
+      const mm = String(now.getMonth()+1).padStart(2,'0');
+      const dd = String(now.getDate()).padStart(2,'0');
+      link.download = `${yy}${mm}${dd} iggg 주간일정.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }).catch(() => { restore(); });
+  });
+  });
   });
 }
 
