@@ -307,7 +307,9 @@
   .modal-overlay {
     display:none; position:fixed; inset:0;
     background:rgba(0,0,0,0.2); z-index:200;
-    align-items:center; justify-content:center;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 48px;
     backdrop-filter: blur(3px);
   }
   .modal-overlay.open { display:flex; }
