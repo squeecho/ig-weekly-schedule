@@ -220,12 +220,11 @@
   /* ── Entry text ── */
   .entry-vert {
     display: inline-block;
-    writing-mode: vertical-rl;
-    text-orientation: upright;
-    letter-spacing: 3px;
     font-size: 15px;
     font-weight: 600;
-    white-space: nowrap;
+    line-height: 1.6;
+    letter-spacing: 0;
+    text-align: center;
   }
   .entry-type-h {
     display: block;
@@ -701,7 +700,7 @@ function buildTable() {
         if(span === 1) {
           td.innerHTML = `<span class="entry-single-text">${entry.site}</span><button class="entry-del" onclick="event.stopPropagation(); removeEntry('${entry.id}')">✕</button>`;
         } else {
-          td.innerHTML = `<span class="entry-vert">${entry.site}</span><span class="entry-type-h">${typeLabels[entry.type]}</span><button class="entry-del" onclick="event.stopPropagation(); removeEntry('${entry.id}')">✕</button>`;
+          td.innerHTML = `<span class="entry-vert">${entry.site.split('').join('<br>')}</span><span class="entry-type-h">${typeLabels[entry.type]}</span><button class="entry-del" onclick="event.stopPropagation(); removeEntry('${entry.id}')">✕</button>`;
         }
       }
 
