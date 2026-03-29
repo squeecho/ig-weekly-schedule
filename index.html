@@ -181,7 +181,8 @@
     border-right: 1.5px solid var(--border);
   }
   .schedule-table td.cell {
-    padding: 2px; height: 44px; cursor: pointer;
+    padding: 2px; height: 44px; min-height: 44px; max-height: 44px;
+    cursor: pointer;
     transition: background 0.12s; position: relative;
   }
   .schedule-table td.cell:hover { background: #f8f7f3; }
@@ -682,10 +683,11 @@ function buildTable() {
           const typeLabels = {material:'자재수급', work:'작업', waste:'폐기물'};
           const span = e.endH - e.startH;
           if(span > 1) {
-            div.style.height = `calc(${span * 44 + (span-1)}px - 2px)`;
             div.style.position = 'absolute';
             div.style.left = '2px'; div.style.right = '2px';
             div.style.top = '2px'; div.style.zIndex = '2';
+            // height will be set by resizeEntries()
+            div.dataset.span = span;
             div.innerHTML = `<span class="entry-vert">${e.site}</span><span class="entry-type-h">${typeLabels[e.type]}</span><button class="entry-del" onclick="event.stopPropagation(); removeEntry('${e.id}')">✕</button>`;
           } else {
             div.classList.add('entry-single');
@@ -700,6 +702,19 @@ function buildTable() {
       tr.appendChild(td);
     }
     tbody.appendChild(tr);
+  });
+  // 렌더 후 entry 높이 재계산
+  requestAnimationFrame(resizeEntries);
+}
+
+function resizeEntries() {
+  // 실제 셀 높이 측정
+  const firstCell = document.querySelector('td.cell');
+  if(!firstCell) return;
+  const cellH = firstCell.getBoundingClientRect().height;
+  document.querySelectorAll('.entry[data-span]').forEach(div => {
+    const span = parseInt(div.dataset.span);
+    div.style.height = `${span * cellH - 4}px`;
   });
 }
 
@@ -880,28 +895,33 @@ function exportImage() {
 
   // 리플로우 대기 후 캡처
   requestAnimationFrame(() => {
-    html2canvas(el, {
-      scale: 2, backgroundColor: '#f5f4f0', useCORS: true
-    }).then(canvas => {
-      // 복원
-      wrap.style.maxWidth = origMaxW;
-      wrap.style.padding = origPad;
-      nav.style.display = '';
-      toast.style.display = '';
+    resizeEntries(); // 좁힌 폭에 맞게 entry 높이 재계산
+    requestAnimationFrame(() => {
+      html2canvas(el, {
+        scale: 2, backgroundColor: '#f5f4f0', useCORS: true
+      }).then(canvas => {
+        // 복원
+        wrap.style.maxWidth = origMaxW;
+        wrap.style.padding = origPad;
+        nav.style.display = '';
+        toast.style.display = '';
+        resizeEntries();
 
-      const link = document.createElement('a');
-      const now = new Date();
-      const yy = String(now.getFullYear()).slice(2);
-      const mm = String(now.getMonth()+1).padStart(2,'0');
-      const dd = String(now.getDate()).padStart(2,'0');
-      link.download = `${yy}${mm}${dd} iggg 주간일정.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }).catch(() => {
-      wrap.style.maxWidth = origMaxW;
-      wrap.style.padding = origPad;
-      nav.style.display = '';
-      toast.style.display = '';
+        const link = document.createElement('a');
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(2);
+        const mm = String(now.getMonth()+1).padStart(2,'0');
+        const dd = String(now.getDate()).padStart(2,'0');
+        link.download = `${yy}${mm}${dd} iggg 주간일정.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      }).catch(() => {
+        wrap.style.maxWidth = origMaxW;
+        wrap.style.padding = origPad;
+        nav.style.display = '';
+        toast.style.display = '';
+        resizeEntries();
+      });
     });
   });
 }
