@@ -94,23 +94,20 @@
   /* ── Weekly Goal ── */
   .weekly-goal {
     margin: 12px 20px;
-    padding: 0 16px;
+    padding: 14px 16px;
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
-    display: flex; align-items: center; gap: 12px;
+    display: flex; align-items: baseline; gap: 12px;
     background: var(--white);
-    height: 48px;
   }
   .weekly-goal label {
     font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap;
-    line-height: 48px;
   }
   .weekly-goal input {
     flex:1; border:none; outline:none;
     font-size: 14px; font-weight: 400; font-family: inherit;
     color: var(--text); background: transparent;
-    line-height: 48px; height: 48px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    padding: 0; margin: 0;
   }
   .weekly-goal input::placeholder { color: var(--text-light); }
 
