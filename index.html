@@ -94,20 +94,23 @@
   /* ── Weekly Goal ── */
   .weekly-goal {
     margin: 12px 20px;
-    padding: 14px 16px;
+    padding: 16px 16px;
     border: 1.5px solid var(--border);
     border-radius: var(--radius-sm);
     display: flex; align-items: baseline; gap: 12px;
     background: var(--white);
+    overflow: visible;
   }
   .weekly-goal label {
     font-size: 14px; font-weight: 600; color: var(--text); white-space: nowrap;
+    line-height: 1.4;
   }
   .weekly-goal input {
     flex:1; border:none; outline:none;
     font-size: 14px; font-weight: 400; font-family: inherit;
     color: var(--text); background: transparent;
     padding: 0; margin: 0;
+    line-height: 1.4;
   }
   .weekly-goal input::placeholder { color: var(--text-light); }
 
@@ -198,7 +201,7 @@
 
   /* ── Entry cells (rowspan) ── */
   .schedule-table td.entry-cell {
-    padding: 4px 2px;
+    padding: 6px 2px;
     vertical-align: middle;
     text-align: center;
   }
@@ -229,8 +232,9 @@
     font-size: 10px;
     font-weight: 500;
     white-space: nowrap;
-    margin-top: 6px;
-    padding-top: 5px;
+    margin-top: 4px;
+    padding-top: 4px;
+    padding-bottom: 2px;
     border-top: 1px solid currentColor;
     opacity: 0.6;
     text-align: center;
@@ -878,7 +882,7 @@ function exportImage() {
   // 캡처용: 모바일 폭 고정
   const origMaxW = wrap.style.maxWidth;
   const origPad = wrap.style.padding;
-  wrap.style.maxWidth = '680px';
+  wrap.style.maxWidth = '720px';
   wrap.style.padding = '0';
   nav.style.display = 'none';
   toast.style.display = 'none';
